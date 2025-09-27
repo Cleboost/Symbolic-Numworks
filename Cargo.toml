@@ -36,7 +36,7 @@ codegen-units = 1
 cortex-m = "0.7.7"
 embedded-alloc = "0.6.0"
 enum-iterator = "2.3.0"
-heapless = "0.8"
+heapless = "0.9"
 num-rational = { version = "0.4", default-features = false }
 num-traits = { version = "0.2", default-features = false }
 
