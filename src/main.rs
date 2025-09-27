@@ -1,82 +1,99 @@
 #![cfg_attr(target_os = "none", no_std)]
 #![no_main]
 
-#[allow(unused_imports)]
-#[cfg(target_os = "none")]
-use cortex_m;
-
-#[cfg(target_os = "none")]
-use embedded_alloc::LlffHeap as Heap;
-
-#[global_allocator]
-#[cfg(target_os = "none")]
-static HEAP: Heap = Heap::empty();
-
 #[cfg(target_os = "none")]
 extern crate alloc;
 
-pub mod eadk;
+#[cfg(target_os = "none")]
+use embedded_alloc::LlffHeap;
 
-// Function to estimate text width
-fn estimate_text_width(text: &str, large_font: bool) -> u16 {
-    let char_width = if large_font { 12 } else { 8 }; // Estimation based on Numworks fonts
-    text.len() as u16 * char_width
+#[cfg(target_os = "none")]
+#[global_allocator]
+static HEAP: LlffHeap = LlffHeap::empty();
+
+mod eadk;
+mod ui;
+mod input;
+mod parser;
+mod parsebeta;
+
+#[cfg(target_os = "none")]
+mod critical_section_impl {
+    use core::sync::atomic::AtomicBool;
+    
+    static CRITICAL_SECTION: AtomicBool = AtomicBool::new(false);
+    
+    #[unsafe(no_mangle)]
+    pub extern "C" fn _critical_section_1_0_acquire() -> u8 {
+        0
+    }
+    
+    #[unsafe(no_mangle)]
+    pub extern "C" fn _critical_section_1_0_release(_state: u8) {
+    }
 }
+
+
+use input::InputHandler;
 
 #[used]
 #[cfg(target_os = "none")]
 #[unsafe(link_section = ".rodata.eadk_app_name")]
-pub static EADK_APP_NAME: [u8; 13] = *b"Num Template\0"; //YOUR APP NAME HERE
-
-#[used]
-#[cfg(target_os = "none")]
-#[unsafe(link_section = ".rodata.eadk_api_level")]
-pub static EADK_APP_API_LEVEL: u32 = 0; 
+pub static EADK_APP_NAME: [u8; 17] = *b"Symbolic Compute\0";
 
 #[used]
 #[cfg(target_os = "none")]
 #[unsafe(link_section = ".rodata.eadk_app_icon")]
-//Dont forget to change size (1520) to the size of your icon (in bytes)
-pub static EADK_APP_ICON: [u8; 1520] = *include_bytes!("../target/icon.nwi"); //YOUR APP ICON HERE
+pub static EADK_APP_ICON: [u8; 4] = *b"\x00\x00\x00\x00";
+
+#[used]
+#[cfg(target_os = "none")]
+#[unsafe(link_section = ".rodata.eadk_api_level")]
+pub static EADK_API_LEVEL: u32 = 0;
 
 #[unsafe(no_mangle)]
-fn main() -> isize {
-    // Init the heap
+pub extern "C" fn main() {
     #[cfg(target_os = "none")]
-    {
-        let heap_size: usize = eadk::heap_size();
-        unsafe { HEAP.init(eadk::HEAP_START as usize, heap_size) }
+    unsafe {
+        HEAP.init(0x20000000 as usize, 1024 * 1024);
     }
-
-    // Wait for OK key release to avoid instant click
-    while eadk::input::KeyboardState::scan().key_down(eadk::input::Key::Ok) {
-        eadk::timing::msleep(50);
+    
+    let mut input_handler = InputHandler::new();
+    
+    let keyboard = eadk::input::KeyboardState::scan();
+    while keyboard.key_down(eadk::input::Key::Exe) {
+        eadk::timing::msleep(10);
     }
-
-    // Clear screen with white background
-    eadk::display::push_rect_uniform(eadk::SCREEN_RECT, eadk::Color::from_888(255, 255, 255));
     
-    // Draw "Hello World!" text (perfectly centered)
-    let hello_text = "Hello World!";
-    let hello_width = estimate_text_width(hello_text, true);
-    let hello_x = (320u16.saturating_sub(hello_width)) / 2; // Perfect centering with overflow protection
-    let text_point = eadk::Point { x: hello_x, y: 100 };
-    eadk::display::draw_string(hello_text, text_point, true, eadk::COLOR_BLACK, eadk::Color::from_888(255, 255, 255));
-    
-    // Draw instructions (perfectly centered)
-    let instructions = "Press EXE to exit";
-    let inst_width = estimate_text_width(instructions, true);
-    let inst_x = (320u16.saturating_sub(inst_width)) / 2; // Perfect centering with overflow protection
-    let inst_point = eadk::Point { x: inst_x, y: 150 };
-    eadk::display::draw_string(instructions, inst_point, true, eadk::COLOR_BLACK, eadk::Color::from_888(255, 255, 255));
-
-    // Wait for EXE key to exit
     loop {
-        if eadk::input::KeyboardState::scan().key_down(eadk::input::Key::Exe) {
+        let title = "SYMBOLIC COMPUTE";
+        
+        ui::draw_interface(
+            title,
+            &input_handler.calculation_history,
+            &input_handler.input_buffer,
+            input_handler.cursor_position,
+            input_handler.cursor_blink_timer,
+            input_handler.exponent_mode
+        );
+        
+        let keyboard = eadk::input::KeyboardState::scan();
+        
+        if keyboard.key_down(eadk::input::Key::Back) {
             break;
         }
-        eadk::timing::msleep(16); // ~60 FPS
+        
+        if input_handler.handle_exe_key() {
+            continue;
+        }
+        
+        input_handler.handle_backspace();
+        input_handler.handle_arrow_keys();
+        input_handler.handle_xnt_key();
+        input_handler.handle_operator_keys();
+        input_handler.handle_number_keys();
+        input_handler.update_timer();
+        
+        eadk::timing::msleep(16);
     }
-
-    0
 }

@@ -1,30 +1,30 @@
 current_target := shell("rustc -vV | grep \"host:\" | awk '{print $2}'")
 
 build:
-    cargo build --release --bin num-template --target=thumbv7em-none-eabihf
+    cargo build --release --bin symbolic --target=thumbv7em-none-eabihf
 
 send:
-    cargo run --release --bin num-template --target=thumbv7em-none-eabihf
+    cargo run --release --bin symbolic --target=thumbv7em-none-eabihf
 
 check:
-    cargo build --release --bin num-template --target=thumbv7em-none-eabihf
+    cargo build --release --bin symbolic --target=thumbv7em-none-eabihf
     cargo build --release --target={{current_target}} --lib
 
 export-nwa:
     just build
-    mv target/thumbv7em-none-eabihf/release/num-template num-template.nwa
+    mv target/thumbv7em-none-eabihf/release/symbolic symbolic.nwa
 
 [macos]
 run_nwb:
-    ./epsilon_simulator/output/release/simulator/macos/epsilon.app/Contents/MacOS/Epsilon --nwb ./target/{{current_target}}/release/libNumTemplateSim.dylib
+    ./epsilon_simulator/output/release/simulator/macos/epsilon.app/Contents/MacOS/Epsilon --nwb ./target/{{current_target}}/release/libsymbolicSim.dylib
 
 [linux]
 run_nwb:
-    ./epsilon_simulator/output/release/simulator/linux/epsilon.bin --nwb ./target/{{current_target}}/release/libNumTemplateSim.so
+    ./epsilon_simulator/output/release/simulator/linux/epsilon.bin --nwb ./target/{{current_target}}/debug/libsymbolicSim.so
 
 sim jobs="1":
     -git clone https://github.com/numworks/epsilon.git epsilon_simulator -b version-20 # Broken with version 21. Nice!
-    cargo build --release --target={{current_target}} --lib
+    cargo build --target={{current_target}} --lib
     if [ ! -f "target/simulator_patched" ]; then \
         cd epsilon_simulator && make PLATFORM=simulator -j {{jobs}}; \
         cd ..; \

@@ -1,12 +1,12 @@
 cargo-features = ["profile-rustflags"]
 [package]
-name = "num-template"
+name = "symbolic"
 version = "0.1.0"
 authors = ["Cleboost"]
 edition = "2024"
 
 [[bin]]
-name = "num-template"
+name = "symbolic"
 path = "src/main.rs"
 test = false
 doctest = false
@@ -16,7 +16,7 @@ bench = false
 path = "src/main.rs"
 bench = false
 crate-type = ["cdylib"]
-name = "NumTemplateSim"
+name = "symbolicSim"
 
 [profile.dev]
 panic="abort"
@@ -33,9 +33,12 @@ lto = true
 codegen-units = 1
 
 [dependencies]
-cortex-m = {version="0.7.7", features=["critical-section-single-core"]}
+cortex-m = "0.7.7"
 embedded-alloc = "0.6.0"
 enum-iterator = "2.3.0"
+heapless = "0.8"
+num-rational = { version = "0.4", default-features = false }
+num-traits = { version = "0.2", default-features = false }
 
 [build-dependencies]
 cc = "1.2.27"
